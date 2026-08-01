@@ -5,6 +5,9 @@ const transactionListEl = document.getElementById("transaction-list");
 const transactionFormEl = document.getElementById("transaction-form");
 const descriptionEl = document.getElementById("description");
 const amountEl = document.getElementById("amount");
+const categoryEl = document.getElementById("category");
+// Add budget limit constant
+const FOOD_BUDGET_LIMIT = 200;
 
 let transactions = JSON.parse(localStorage.getItem("transactions")) || [];
 
@@ -37,30 +40,47 @@ function addTransaction(e) {
   const description = descriptionEl.value.trim();
   let amount = Math.abs(parseFloat(amountEl.value)); // Force positive base
   const type = document.getElementById("type").value; // Read dropdown
+  const category = categoryEl ? categoryEl.value : "General"; // Read category
 
   if (isNaN(amount)) return;
 
-// --- ALERT SYSTEM HERE ---
   const currentBalance = transactions.reduce((acc, t) => acc + t.amount, 0);
-  if (type === "expense" && amount > currentBalance) {
-    alert("Warning: Insufficient balance for this expense!");
-    return;
-  }
 
-  // Make negative if expense
+  // Checks and conversions for expenses
   if (type === "expense") {
+    // 1. Check total balance
+    if (amount > currentBalance) {
+      alert("Warning: Insufficient balance for this expense!");
+      return;
+    }
+
+    // 👇 FIT THE FOOD ALERT HERE 👇
+    const currentFoodSpent = transactions
+      .filter((t) => t.amount < 0 && (t.category === "Food" || !t.category))
+      .reduce((acc, t) => acc + Math.abs(t.amount), 0);
+
+    if (
+      (category === "Food" || !categorySelect) &&
+      currentFoodSpent + amount > FOOD_BUDGET_LIMIT
+    ) {
+      alert(
+        `Warning: This expense exceeds your $${FOOD_BUDGET_LIMIT} Food budget limit!`,
+      );
+    }
+
+    // Convert amount to negative
     amount = -amount;
   }
 
-  transactions.push({ id: Date.now(), description, amount });
+  // Save transaction including category
+  transactions.push({ id: Date.now(), description, amount, category });
 
   localStorage.setItem("transactions", JSON.stringify(transactions));
   updateTransactionList();
   updateSummary();
+  updateBudgetUI(); // Update Budget bar
   transactionFormEl.reset();
 }
-
-
 
 function updateTransactionList() {
   transactionListEl.innerHTML = "";
@@ -74,6 +94,14 @@ function updateTransactionList() {
 }
 
 function createTransactionElement(transaction) {
+  // Add category emojis mapping
+  const categoryEmojis = {
+    Food: "🍔",
+    Transport: "🚗",
+    Entertainment: "🎬",
+    General: "📦",
+  };
+
   const li = document.createElement("li");
   li.classList.add("transaction");
   li.classList.add(transaction.amount > 0 ? "income" : "expenses");
@@ -92,7 +120,10 @@ function createTransactionElement(transaction) {
 
 function updateSummary() {
   // 100, -50, 200, -200 => 50
-  const balance = transactions.reduce((acc, transaction) => acc + transaction.amount, 0);
+  const balance = transactions.reduce(
+    (acc, transaction) => acc + transaction.amount,
+    0,
+  );
 
   const income = transactions
     .filter((transaction) => transaction.amount > 0)
@@ -125,6 +156,29 @@ function removeTransaction(id) {
   updateSummary();
 }
 
+function updateBudgetUI() {
+  const foodSpent = transactions
+    .filter((t) => t.amount < 0 && t.category === "Food")
+    .reduce((acc, t) => acc + Math.abs(t.amount), 0);
+
+  const percentage = Math.min((foodSpent / FOOD_BUDGET_LIMIT) * 100, 100);
+
+  const progressBar = document.getElementById("food-progress");
+  const budgetStatus = document.getElementById("budget-status");
+
+  if (progressBar && budgetStatus) {
+    progressBar.style.width = `${percentage}%`;
+    budgetStatus.textContent = `$${foodSpent.toFixed(2)} / $${FOOD_BUDGET_LIMIT.toFixed(2)} spent`;
+
+    if (percentage >= 80) {
+      progressBar.classList.add("warning");
+    } else {
+      progressBar.classList.remove("warning");
+    }
+  }
+}
+
 // initial render
 updateTransactionList();
 updateSummary();
+updateBudgetUI();
