@@ -276,6 +276,23 @@ button[type="submit"]:active{
 }
 
 
+select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 1rem;
+  background-color: white;
+  color: #2d3436;
+  transition: all 0.2s ease;
+}
+
+select:focus {
+  border-color: #3182ce;
+  outline: none;
+}
+
+
 /* responsiveness */
 @media (max-width: 900px) {
   .main-content {
